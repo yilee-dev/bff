@@ -1,5 +1,6 @@
 server:
   port: 8080
+  address: 10.117.9.40
 
 spring:
   data:
@@ -10,7 +11,7 @@ spring:
   session:
     data:
       redis:
-        namespace: "session:gateway"
+        namespace: "session"
         save-mode: always
     timeout: 30m
 
@@ -24,7 +25,7 @@ spring:
         registration:
           keycloak:
             client-id: api-gateway
-            client-secret: W12ksxRhNoWKadV27LafM132aodDopnf
+            client-secret: i4BIMYcDHdaFwcj19fFVHOksgg2Rrrqw
             authorization-grant-type: authorization_code
             scope:
               - openid

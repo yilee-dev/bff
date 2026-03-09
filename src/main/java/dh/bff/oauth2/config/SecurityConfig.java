@@ -2,9 +2,8 @@ package dh.bff.oauth2.config;
 
 import dh.bff.constant.ClientInfo;
 import dh.bff.oauth2.filter.CsrfTokenResponseHeaderFilter;
-import dh.bff.oauth2.handler.DynamicLogoutSuccessHandler;
-import dh.bff.oauth2.handler.DynamicRedirectSuccessHandler;
-import dh.bff.oauth2.handler.LogoutOriginPreservingHandler;
+import dh.bff.oauth2.handler.CustomLoginSuccessHandler;
+import dh.bff.oauth2.handler.CustomLogoutSuccessHandler;
 import dh.bff.oauth2.repository.OriginPreservingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -14,7 +13,6 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.oauth2.client.oidc.web.server.logout.OidcClientInitiatedServerLogoutSuccessHandler;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository;
@@ -33,7 +31,6 @@ import java.util.List;
 public class SecurityConfig {
 
     private final OriginPreservingRepository originPreservingRepository;
-    private final LogoutOriginPreservingHandler logoutOriginPreservingHandler;
     private final ReactiveClientRegistrationRepository clientRegistrationRepository;
 
     @Bean
@@ -42,9 +39,8 @@ public class SecurityConfig {
         cookieServerCsrfTokenRepository.setCookieCustomizer(cookie ->
                 cookie.httpOnly(true)
                         .secure(false)
-                        .sameSite("Lax"));
+                        .sameSite(null));
 
-        OidcClientInitiatedServerLogoutSuccessHandler logoutSuccessHandler = new OidcClientInitiatedServerLogoutSuccessHandler(clientRegistrationRepository);
         return http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf
@@ -61,15 +57,13 @@ public class SecurityConfig {
                         .pathMatchers("/login/**", "/public/**", "/logout", "/logout/**").permitAll()
                         .anyExchange().authenticated())
                 .oauth2Login(oauth2 -> oauth2
-                        .authorizationRequestRepository(originPreservingRepository)
-                        .authenticationSuccessHandler(new DynamicRedirectSuccessHandler()))
+                        .authenticationSuccessHandler(new CustomLoginSuccessHandler()))
                 .requestCache(cache -> cache
                         .requestCache(new WebSessionServerRequestCache()))
                 .logout(logout -> logout
-                        .logoutHandler(logoutOriginPreservingHandler)
-                        .logoutSuccessHandler(new DynamicLogoutSuccessHandler())
-                        .requiresLogout(ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, "/logout"))
-                        .logoutSuccessHandler(logoutSuccessHandler))
+                        .logoutUrl("/logout")
+                        .logoutSuccessHandler(new CustomLogoutSuccessHandler(clientRegistrationRepository))
+                )
                 .build();
     }
 
