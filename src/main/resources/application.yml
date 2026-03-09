@@ -1,0 +1,43 @@
+server:
+  port: 8080
+
+spring:
+  data:
+    redis:
+      host: 10.100.104.24
+      port: 6400
+      password: DHD@ngh222
+  session:
+    data:
+      redis:
+        namespace: "session:gateway"
+        save-mode: always
+    timeout: 30m
+
+  security:
+    oauth2:
+      client:
+        provider:
+          keycloak:
+            issuer-uri: http://10.100.104.24:8080/realms/donghee
+            authorization-uri: http://10.100.104.24:8080/realms/donghee/protocol/openid-connect/auth
+        registration:
+          keycloak:
+            client-id: api-gateway
+            client-secret: W12ksxRhNoWKadV27LafM132aodDopnf
+            authorization-grant-type: authorization_code
+            scope:
+              - openid
+              - email
+              - profile
+  cloud:
+    gateway:
+      server:
+        webflux:
+          default-filters:
+            - TokenRelay
+          routes:
+            - id: rentals
+              uri: http://10.117.9.40:8081
+              predicates:
+                - Path=/api/**
