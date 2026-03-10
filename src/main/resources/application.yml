@@ -21,7 +21,6 @@ spring:
         provider:
           keycloak:
             issuer-uri: http://10.100.104.24:8080/realms/donghee
-            authorization-uri: http://10.100.104.24:8080/realms/donghee/protocol/openid-connect/auth
         registration:
           keycloak:
             client-id: api-gateway
@@ -42,3 +41,6 @@ spring:
               uri: http://10.117.9.40:8081
               predicates:
                 - Path=/api/**
+logging:
+  level:
+    org.springframework.security.web: trace

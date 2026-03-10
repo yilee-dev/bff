@@ -10,6 +10,7 @@ public class CsrfTokenResponseHeaderFilter implements WebFilter {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
         Mono<CsrfToken> csrfToken = exchange.getAttribute(CsrfToken.class.getName());
+
         if (csrfToken != null) {
             return csrfToken.flatMap(token -> {
                 exchange.getResponse().getHeaders().set(token.getHeaderName(), token.getToken());

@@ -30,7 +30,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final OriginPreservingRepository originPreservingRepository;
     private final ReactiveClientRegistrationRepository clientRegistrationRepository;
 
     @Bean
@@ -39,14 +38,14 @@ public class SecurityConfig {
         cookieServerCsrfTokenRepository.setCookieCustomizer(cookie ->
                 cookie.httpOnly(true)
                         .secure(false)
-                        .sameSite(null));
+                        .sameSite("Lax"));
 
         return http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(cookieServerCsrfTokenRepository)
                         .requireCsrfProtectionMatcher(exchange -> {
-                            return ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, "/logout")
+                            return ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, "/api/auth/sign-out")
                                     .matches(exchange)
                                     .flatMap(matchResult -> matchResult.isMatch() ?
                                             ServerWebExchangeMatcher.MatchResult.notMatch() :
@@ -54,16 +53,14 @@ public class SecurityConfig {
                         }))
                 .addFilterAfter(new CsrfTokenResponseHeaderFilter(), SecurityWebFiltersOrder.CSRF)
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/login/**", "/public/**", "/logout", "/logout/**").permitAll()
+                        .pathMatchers("/login/**", "/public/**", "/logout", "/logout/**", "/sign-out",
+                                "/api/auth/**").permitAll()
                         .anyExchange().authenticated())
                 .oauth2Login(oauth2 -> oauth2
                         .authenticationSuccessHandler(new CustomLoginSuccessHandler()))
                 .requestCache(cache -> cache
                         .requestCache(new WebSessionServerRequestCache()))
-                .logout(logout -> logout
-                        .logoutUrl("/logout")
-                        .logoutSuccessHandler(new CustomLogoutSuccessHandler(clientRegistrationRepository))
-                )
+                .logout(ServerHttpSecurity.LogoutSpec::disable)
                 .build();
     }
 
