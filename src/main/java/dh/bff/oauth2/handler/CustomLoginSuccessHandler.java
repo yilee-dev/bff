@@ -2,8 +2,10 @@ package dh.bff.oauth2.handler;
 
 import dh.bff.constant.ClientInfo;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.server.WebFilterExchange;
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.net.URI;
@@ -13,6 +15,11 @@ public class CustomLoginSuccessHandler extends RedirectServerAuthenticationSucce
     public Mono<Void> onAuthenticationSuccess(WebFilterExchange webFilterExchange, Authentication authentication) {
         String redirectUrl = ClientInfo.getClientInfo();
         this.setLocation(URI.create(redirectUrl));
-        return super.onAuthenticationSuccess(webFilterExchange, authentication);
+
+        ServerWebExchange exchange = webFilterExchange.getExchange();
+
+        return exchange.getAttributeOrDefault(CsrfToken.class.getName(), Mono.<CsrfToken>empty())
+                .doOnNext(CsrfToken::getToken)
+                .then(super.onAuthenticationSuccess(webFilterExchange, authentication));
     }
 }

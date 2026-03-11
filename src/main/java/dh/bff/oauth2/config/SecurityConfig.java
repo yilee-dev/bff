@@ -1,10 +1,10 @@
 package dh.bff.oauth2.config;
 
 import dh.bff.constant.ClientInfo;
-import dh.bff.oauth2.filter.CsrfTokenResponseHeaderFilter;
+import dh.bff.oauth2.filter.CsrfCookieWebFilter;
+import dh.bff.oauth2.filter.SpaCsrfTokenFilter;
 import dh.bff.oauth2.handler.CustomLoginSuccessHandler;
-import dh.bff.oauth2.handler.CustomLogoutSuccessHandler;
-import dh.bff.oauth2.repository.OriginPreservingRepository;
+import io.netty.handler.codec.http.cookie.Cookie;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,10 +13,13 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.oauth2.client.oidc.web.server.logout.OidcClientInitiatedServerLogoutSuccessHandler;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository;
 import org.springframework.security.web.server.csrf.CsrfWebFilter;
+import org.springframework.security.web.server.csrf.ServerCsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.server.csrf.XorServerCsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.server.savedrequest.WebSessionServerRequestCache;
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher;
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
@@ -34,27 +37,34 @@ public class SecurityConfig {
 
     @Bean
     public SecurityWebFilterChain gatewaySecurityWebFilterChain(ServerHttpSecurity http) {
-        CookieServerCsrfTokenRepository cookieServerCsrfTokenRepository = new CookieServerCsrfTokenRepository();
-        cookieServerCsrfTokenRepository.setCookieCustomizer(cookie ->
-                cookie.httpOnly(true)
-                        .secure(false)
-                        .sameSite("Lax"));
+
+        CookieServerCsrfTokenRepository cookieServerCsrfTokenRepository = CookieServerCsrfTokenRepository.withHttpOnlyFalse();
+        cookieServerCsrfTokenRepository.setCookiePath("/");
+        cookieServerCsrfTokenRepository.setCookieCustomizer(cookie -> cookie
+                .secure(false)
+                .sameSite("Lax"));
 
         return http
                 .cors(Customizer.withDefaults())
+//                .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(cookieServerCsrfTokenRepository)
-                        .requireCsrfProtectionMatcher(exchange -> {
-                            return ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, "/api/auth/sign-out")
-                                    .matches(exchange)
-                                    .flatMap(matchResult -> matchResult.isMatch() ?
-                                            ServerWebExchangeMatcher.MatchResult.notMatch() :
-                                            CsrfWebFilter.DEFAULT_CSRF_MATCHER.matches(exchange));
-                        }))
-                .addFilterAfter(new CsrfTokenResponseHeaderFilter(), SecurityWebFiltersOrder.CSRF)
+                        .csrfTokenRequestHandler(new ServerCsrfTokenRequestAttributeHandler()))
+//                .csrf(csrf -> csrf
+//                                .csrfTokenRepository(csrfTokenRepository)
+//                                .csrfTokenRequestHandler(new XorServerCsrfTokenRequestAttributeHandler())
+//                                .requireCsrfProtectionMatcher(exchange -> {
+//                            return ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, "/api/auth/sign-out")
+//                                    .matches(exchange)
+//                                    .flatMap(matchResult -> matchResult.isMatch() ?
+//                                            ServerWebExchangeMatcher.MatchResult.notMatch() :
+//                                            CsrfWebFilter.DEFAULT_CSRF_MATCHER.matches(exchange));
+//                        })
+//                )
+                .addFilterAfter(new CsrfCookieWebFilter(cookieServerCsrfTokenRepository), SecurityWebFiltersOrder.CSRF)
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/login/**", "/public/**", "/logout", "/logout/**", "/sign-out",
-                                "/api/auth/**").permitAll()
+                        .pathMatchers("/login/**", "/public/**").permitAll()
+                        .pathMatchers("/api/auth/sign-out").authenticated()
                         .anyExchange().authenticated())
                 .oauth2Login(oauth2 -> oauth2
                         .authenticationSuccessHandler(new CustomLoginSuccessHandler()))
