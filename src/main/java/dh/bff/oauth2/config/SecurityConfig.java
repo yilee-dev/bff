@@ -2,27 +2,20 @@ package dh.bff.oauth2.config;
 
 import dh.bff.constant.ClientInfo;
 import dh.bff.oauth2.filter.CsrfCookieWebFilter;
-import dh.bff.oauth2.filter.SpaCsrfTokenFilter;
 import dh.bff.oauth2.handler.CustomLoginSuccessHandler;
-import io.netty.handler.codec.http.cookie.Cookie;
+import dh.bff.repository.OriginPreservingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.oauth2.client.oidc.web.server.logout.OidcClientInitiatedServerLogoutSuccessHandler;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository;
-import org.springframework.security.web.server.csrf.CsrfWebFilter;
 import org.springframework.security.web.server.csrf.ServerCsrfTokenRequestAttributeHandler;
-import org.springframework.security.web.server.csrf.XorServerCsrfTokenRequestAttributeHandler;
 import org.springframework.security.web.server.savedrequest.WebSessionServerRequestCache;
-import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher;
-import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
@@ -46,27 +39,15 @@ public class SecurityConfig {
 
         return http
                 .cors(Customizer.withDefaults())
-//                .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(cookieServerCsrfTokenRepository)
                         .csrfTokenRequestHandler(new ServerCsrfTokenRequestAttributeHandler()))
-//                .csrf(csrf -> csrf
-//                                .csrfTokenRepository(csrfTokenRepository)
-//                                .csrfTokenRequestHandler(new XorServerCsrfTokenRequestAttributeHandler())
-//                                .requireCsrfProtectionMatcher(exchange -> {
-//                            return ServerWebExchangeMatchers.pathMatchers(HttpMethod.POST, "/api/auth/sign-out")
-//                                    .matches(exchange)
-//                                    .flatMap(matchResult -> matchResult.isMatch() ?
-//                                            ServerWebExchangeMatcher.MatchResult.notMatch() :
-//                                            CsrfWebFilter.DEFAULT_CSRF_MATCHER.matches(exchange));
-//                        })
-//                )
                 .addFilterAfter(new CsrfCookieWebFilter(cookieServerCsrfTokenRepository), SecurityWebFiltersOrder.CSRF)
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/login/**", "/public/**").permitAll()
-                        .pathMatchers("/api/auth/sign-out").authenticated()
+                        .pathMatchers("/login/**", "/public/**", "/api/auth/sign-out").permitAll()
                         .anyExchange().authenticated())
                 .oauth2Login(oauth2 -> oauth2
+                        .authorizationRequestRepository(new OriginPreservingRepository())
                         .authenticationSuccessHandler(new CustomLoginSuccessHandler()))
                 .requestCache(cache -> cache
                         .requestCache(new WebSessionServerRequestCache()))
@@ -80,7 +61,7 @@ public class SecurityConfig {
         corsConfiguration.setAllowCredentials(true);
         corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         corsConfiguration.setAllowedHeaders(List.of("*"));
-        corsConfiguration.setAllowedOrigins(List.of(ClientInfo.getClientInfo()));
+        corsConfiguration.setAllowedOrigins(List.of(ClientInfo.getClientInfo(), "http://10.117.9.40:4000"));
 
         UrlBasedCorsConfigurationSource urlBasedCorsConfigurationSource = new UrlBasedCorsConfigurationSource();
         urlBasedCorsConfigurationSource.registerCorsConfiguration("/**", corsConfiguration);
