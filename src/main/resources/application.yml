@@ -29,7 +29,11 @@ spring:
             scope:
               - openid
               - email
+              - roles
               - profile
+      resourceserver:
+        jwt:
+          issuer-uri: http://10.100.104.24:8080/realms/donghee
   cloud:
     gateway:
       server:

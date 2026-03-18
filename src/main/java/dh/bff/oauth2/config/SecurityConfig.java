@@ -11,7 +11,12 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
+import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository;
 import org.springframework.security.web.server.csrf.ServerCsrfTokenRequestAttributeHandler;
@@ -19,7 +24,8 @@ import org.springframework.security.web.server.savedrequest.WebSessionServerRequ
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -45,6 +51,7 @@ public class SecurityConfig {
                 .addFilterAfter(new CsrfCookieWebFilter(cookieServerCsrfTokenRepository), SecurityWebFiltersOrder.CSRF)
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/login/**", "/public/**", "/api/auth/sign-out").permitAll()
+                        .pathMatchers("/api/users").hasRole("view_users")
                         .anyExchange().authenticated())
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationRequestRepository(new OriginPreservingRepository())
@@ -54,6 +61,48 @@ public class SecurityConfig {
                 .logout(ServerHttpSecurity.LogoutSpec::disable)
                 .build();
     }
+
+    @Bean
+    public GrantedAuthoritiesMapper userAuthoritiesMapper() {
+        return (authorities) -> {
+            Set<GrantedAuthority> mappedAuthorities = new HashSet<>();
+
+            authorities.forEach(authority -> {
+                mappedAuthorities.add(authority);
+
+                if (authority instanceof OidcUserAuthority oidcAuth) {
+                    Map<String, Object> claims = oidcAuth.getIdToken().getClaims();
+
+                    extractRoles(claims.get("realm_access"), mappedAuthorities);
+
+                    if (claims.get("resource_access") instanceof Map<?, ?> resourceAccess) {
+                        resourceAccess.values().forEach(clientAccess ->
+                                extractRoles(clientAccess, mappedAuthorities)
+                        );
+                    }
+                }
+            });
+
+            return mappedAuthorities;
+        };
+    }
+
+    /**
+     * Keycloak의 롤 구조(realm_access -> roles)에서 순수 이름만 추출하여 ROLE_을 붙여 변환하는 유틸리티 메서드
+     */
+    private void extractRoles(Object accessObj, Set<GrantedAuthority> mappedAuthorities) {
+        if (accessObj instanceof Map<?, ?> accessMap) {
+            Object rolesObj = accessMap.get("roles");
+            if (rolesObj instanceof Collection<?> roles) {
+                roles.forEach(role -> {
+                    // Keycloak 이름이 "view_users"라면, "ROLE_view_users"로 변환합니다.
+                    String roleName = "ROLE_" + role.toString();
+                    mappedAuthorities.add(new SimpleGrantedAuthority(roleName));
+                });
+            }
+        }
+    }
+
 
     @Bean
     public UrlBasedCorsConfigurationSource corsWebFilter() {
