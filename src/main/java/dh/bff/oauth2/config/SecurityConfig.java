@@ -3,10 +3,12 @@ package dh.bff.oauth2.config;
 import dh.bff.constant.ClientInfo;
 import dh.bff.oauth2.filter.CsrfCookieWebFilter;
 import dh.bff.oauth2.handler.CustomLoginSuccessHandler;
+import dh.bff.oauth2.manager.DynamicAuthorizationManager;
 import dh.bff.repository.OriginPreservingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
@@ -32,7 +34,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final ReactiveClientRegistrationRepository clientRegistrationRepository;
+    private final DynamicAuthorizationManager dynamicAuthorizationManager;
 
     @Bean
     public SecurityWebFilterChain gatewaySecurityWebFilterChain(ServerHttpSecurity http) {
@@ -51,8 +53,8 @@ public class SecurityConfig {
                 .addFilterAfter(new CsrfCookieWebFilter(cookieServerCsrfTokenRepository), SecurityWebFiltersOrder.CSRF)
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/login/**", "/public/**", "/api/auth/sign-out").permitAll()
-                        .pathMatchers("/api/users").hasRole("view_users")
-                        .anyExchange().authenticated())
+                        .pathMatchers("/api/admin/auth/update").hasRole("RENTALS_MANAGER")
+                        .anyExchange().access(dynamicAuthorizationManager))
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationRequestRepository(new OriginPreservingRepository())
                         .authenticationSuccessHandler(new CustomLoginSuccessHandler()))
@@ -87,15 +89,11 @@ public class SecurityConfig {
         };
     }
 
-    /**
-     * Keycloak의 롤 구조(realm_access -> roles)에서 순수 이름만 추출하여 ROLE_을 붙여 변환하는 유틸리티 메서드
-     */
     private void extractRoles(Object accessObj, Set<GrantedAuthority> mappedAuthorities) {
         if (accessObj instanceof Map<?, ?> accessMap) {
             Object rolesObj = accessMap.get("roles");
             if (rolesObj instanceof Collection<?> roles) {
                 roles.forEach(role -> {
-                    // Keycloak 이름이 "view_users"라면, "ROLE_view_users"로 변환합니다.
                     String roleName = "ROLE_" + role.toString();
                     mappedAuthorities.add(new SimpleGrantedAuthority(roleName));
                 });
