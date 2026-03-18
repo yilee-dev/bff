@@ -14,19 +14,13 @@ import java.net.URI;
 public class CustomLoginSuccessHandler extends RedirectServerAuthenticationSuccessHandler {
     @Override
     public Mono<Void> onAuthenticationSuccess(WebFilterExchange webFilterExchange, Authentication authentication) {
-//        String redirectUrl = ClientInfo.getClientInfo();
-//        this.setLocation(URI.create(redirectUrl));
-//
-//        ServerWebExchange exchange = webFilterExchange.getExchange();
-//
-//        return exchange.getAttributeOrDefault(CsrfToken.class.getName(), Mono.<CsrfToken>empty())
-//                .doOnNext(CsrfToken::getToken)
-//                .then(super.onAuthenticationSuccess(webFilterExchange, authentication));
         return webFilterExchange.getExchange().getSession()
                 .flatMap(session -> {
                     String clientUrl = session.getAttribute(OriginPreservingRepository.CLIENT_ORIGIN_URL);
-
                     if (clientUrl != null) {
+                        if (clientUrl.endsWith("/")) {
+                            clientUrl = clientUrl.substring(0, clientUrl.length() - 1);
+                        }
                         this.setLocation(URI.create(clientUrl));
                     } else {
                         this.setLocation(URI.create("/"));

@@ -53,6 +53,7 @@ public class SecurityConfig {
                 .addFilterAfter(new CsrfCookieWebFilter(cookieServerCsrfTokenRepository), SecurityWebFiltersOrder.CSRF)
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/login/**", "/public/**", "/api/auth/sign-out").permitAll()
+                        .pathMatchers("/api/auth/me").permitAll()
                         .pathMatchers("/api/admin/auth/update").hasRole("RENTALS_MANAGER")
                         .anyExchange().access(dynamicAuthorizationManager))
                 .oauth2Login(oauth2 -> oauth2
