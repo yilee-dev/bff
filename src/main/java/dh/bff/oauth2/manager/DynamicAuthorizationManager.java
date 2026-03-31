@@ -49,8 +49,12 @@ public class DynamicAuthorizationManager implements ReactiveAuthorizationManager
                 .map(entry -> entry.getValue().toString())
                 .collectList()
                 .flatMap(requiredRoles -> {
+                    // 매칭되는 규칙이 없으면 인증만 확인
                     if (requiredRoles.isEmpty()) {
-                        return Mono.just(new AuthorizationDecision(false));
+                        return authentication
+                                .map(Authentication::isAuthenticated)
+                                .map(AuthorizationDecision::new)
+                                .defaultIfEmpty(new AuthorizationDecision(false));
                     }
 
                     return authentication

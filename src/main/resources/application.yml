@@ -42,9 +42,18 @@ spring:
             - TokenRelay
           routes:
             - id: rentals
-              uri: http://10.117.9.40:8081
+              uri: http://10.117.9.40:8085
               predicates:
                 - Path=/api/**
+keycloak:
+  admin:
+    server-url: http://10.100.104.24:8080
+    realm: donghee
+    # api-gateway 클라이언트에서 Service accounts enabled + realm-management:view-users 권한 필요.
+    # 별도 admin 전용 클라이언트가 있다면 그 client-id/secret으로 교체하세요.
+    client-id: api-gateway
+    client-secret: i4BIMYcDHdaFwcj19fFVHOksgg2Rrrqw
+
 logging:
   level:
     org.springframework.security.web: trace

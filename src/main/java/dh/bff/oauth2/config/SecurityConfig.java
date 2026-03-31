@@ -1,6 +1,5 @@
 package dh.bff.oauth2.config;
 
-import dh.bff.constant.ClientInfo;
 import dh.bff.oauth2.filter.CsrfCookieWebFilter;
 import dh.bff.oauth2.handler.CustomLoginSuccessHandler;
 import dh.bff.oauth2.manager.DynamicAuthorizationManager;
@@ -8,7 +7,6 @@ import dh.bff.repository.OriginPreservingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
@@ -16,9 +14,7 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.authority.mapping.GrantedAuthoritiesMapper;
-import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository;
 import org.springframework.security.web.server.csrf.ServerCsrfTokenRequestAttributeHandler;
@@ -27,7 +23,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -54,8 +49,11 @@ public class SecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/login/**", "/public/**", "/api/auth/sign-out").permitAll()
                         .pathMatchers("/api/auth/me").permitAll()
-                        .pathMatchers("/api/admin/auth/update").hasRole("RENTALS_MANAGER")
-                        .anyExchange().access(dynamicAuthorizationManager))
+                        .pathMatchers("/bff/users", "/bff/users/**").hasRole("RENTALS_VIEWER")
+                        .pathMatchers("/bff/departments", "/bff/departments/**").hasRole("RENTALS_VIEWER")
+                        .pathMatchers("/api/admin/**").hasRole("RENTALS_MANAGER")
+                        .pathMatchers("/api/**").access(dynamicAuthorizationManager)
+                        .anyExchange().authenticated())
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationRequestRepository(new OriginPreservingRepository())
                         .authenticationSuccessHandler(new CustomLoginSuccessHandler()))
@@ -109,7 +107,7 @@ public class SecurityConfig {
         corsConfiguration.setAllowCredentials(true);
         corsConfiguration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         corsConfiguration.setAllowedHeaders(List.of("*"));
-        corsConfiguration.setAllowedOrigins(List.of(ClientInfo.getClientInfo(), "http://10.117.9.40:4000"));
+        corsConfiguration.setAllowedOrigins(List.of("http://10.117.9.40:3000", "http://10.117.9.40:4000", "http://172.100.74.3:3000"));
 
         UrlBasedCorsConfigurationSource urlBasedCorsConfigurationSource = new UrlBasedCorsConfigurationSource();
         urlBasedCorsConfigurationSource.registerCorsConfiguration("/**", corsConfiguration);

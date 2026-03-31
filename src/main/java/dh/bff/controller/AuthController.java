@@ -28,6 +28,10 @@ public class AuthController {
 
     @GetMapping("/me")
     public Mono<ResponseEntity<Map<String, Object>>> getUserInfo(@AuthenticationPrincipal OAuth2User oidcUser) {
+        Map<String, Object> attributes1 = oidcUser.getAttributes();
+        for (String s : attributes1.keySet()) {
+            System.out.println(s + ": " + attributes1.get(s));
+        }
         return Mono.justOrEmpty(oidcUser)
                 .map(user -> {
                     Map<String, Object> attributes = user.getAttributes();
