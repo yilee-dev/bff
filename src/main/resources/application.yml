@@ -1,13 +1,18 @@
 server:
-  port: 8080
-  address: 10.117.9.40
+  port: ${GATEWAY_PORT:8080}
+  address: ${GATEWAY_ADDRESS:10.117.9.40}
 
 spring:
+  codec:
+    max-in-memory-size: 100MB
+  webflux:
+    multipart:
+      max-in-memory-size: 100MB
   data:
     redis:
-      host: 10.100.104.24
-      port: 6400
-      password: DHD@ngh222
+      host: ${REDIS_HOST:10.100.104.24}
+      port: ${REDIS_PORT:6400}
+      password: ${REDIS_PASSWORD:DHD@ngh222}
   session:
     data:
       redis:
@@ -20,11 +25,11 @@ spring:
       client:
         provider:
           keycloak:
-            issuer-uri: http://10.100.104.24:8080/realms/donghee
+            issuer-uri: ${KEYCLOAK_ISSUER_URI:http://10.100.104.24:8080/realms/donghee}
         registration:
           keycloak:
-            client-id: api-gateway
-            client-secret: i4BIMYcDHdaFwcj19fFVHOksgg2Rrrqw
+            client-id: ${KEYCLOAK_CLIENT_ID:api-gateway}
+            client-secret: ${KEYCLOAK_CLIENT_SECRET:i4BIMYcDHdaFwcj19fFVHOksgg2Rrrqw}
             authorization-grant-type: authorization_code
             scope:
               - openid
@@ -33,7 +38,7 @@ spring:
               - profile
       resourceserver:
         jwt:
-          issuer-uri: http://10.100.104.24:8080/realms/donghee
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://10.100.104.24:8080/realms/donghee}
   cloud:
     gateway:
       server:
@@ -41,19 +46,29 @@ spring:
           default-filters:
             - TokenRelay
           routes:
-            - id: rentals
-              uri: http://10.117.9.40:8085
+            - id: user-service
+              uri: ${USER_SERVICE_URL:http://10.117.9.40:8086}
               predicates:
-                - Path=/api/**
+                - Path=/api/v1/users/**
+            - id: rentals
+              uri: ${RENTAL_BACKEND_URL:http://10.117.9.40:8085}
+              predicates:
+                - Path=/api/v1/**
+
 keycloak:
   admin:
-    server-url: http://10.100.104.24:8080
-    realm: donghee
-    # api-gateway 클라이언트에서 Service accounts enabled + realm-management:view-users 권한 필요.
-    # 별도 admin 전용 클라이언트가 있다면 그 client-id/secret으로 교체하세요.
-    client-id: api-gateway
-    client-secret: i4BIMYcDHdaFwcj19fFVHOksgg2Rrrqw
+    server-url: ${KEYCLOAK_SERVER_URL:http://10.100.104.24:8080}
+    realm: ${KEYCLOAK_REALM:donghee}
+    client-id: ${KEYCLOAK_CLIENT_ID:api-gateway}
+    client-secret: ${KEYCLOAK_CLIENT_SECRET:i4BIMYcDHdaFwcj19fFVHOksgg2Rrrqw}
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://10.117.9.40:3000,http://10.117.9.40:4000,http://172.100.74.3:3000}
+  client:
+    url: ${CLIENT_URL:http://10.117.9.40:3000}
 
 logging:
   level:
-    org.springframework.security.web: trace
+    org.springframework.security.web: WARN
+    dh.bff: INFO

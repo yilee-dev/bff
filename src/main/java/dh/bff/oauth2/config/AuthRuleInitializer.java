@@ -19,10 +19,10 @@ public class AuthRuleInitializer implements ApplicationRunner {
     private final ReactiveRedisTemplate<String, String> redisTemplate;
 
     private static final Map<String, String> DEFAULT_RULES = Map.of(
-            "GET:/api/v1/rental-pcs/**", "RENTALS_VIEWER",
-            "POST:/api/v1/rental-pcs/**", "RENTALS_MANAGER",
-            "PUT:/api/v1/rental-pcs/**", "RENTALS_MANAGER",
-            "DELETE:/api/v1/rental-pcs/**", "RENTALS_MANAGER"
+            "GET:/api/v1/rental-pcs/**", "RENTAL_VIEWER",
+            "POST:/api/v1/rental-pcs/**", "RENTAL_MANAGER",
+            "PUT:/api/v1/rental-pcs/**", "RENTAL_MANAGER",
+            "DELETE:/api/v1/rental-pcs/**", "RENTAL_MANAGER"
     );
 
     @Override

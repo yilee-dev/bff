@@ -35,7 +35,7 @@ public class DynamicAuthorizationManager implements ReactiveAuthorizationManager
 
         return redisTemplate.opsForHash().entries(AUTH_MAP_KEY)
                 .filter(entry -> {
-                    String[] keyParts = entry.getKey().toString().split(":");
+                    String[] keyParts = entry.getKey().toString().split(":", 2);
                     if (keyParts.length < 2) return false;
 
                     String configMethod = keyParts[0];
@@ -62,7 +62,12 @@ public class DynamicAuthorizationManager implements ReactiveAuthorizationManager
                             .flatMapIterable(Authentication::getAuthorities)
                             .map(GrantedAuthority::getAuthority)
                             .any(grantedAuth -> requiredRoles.stream()
-                                    .anyMatch(role -> grantedAuth.equals("ROLE_" + role)))
+                                    .anyMatch(role ->
+                                            // Realm role: AUTH_MAP 값 "RENTAL_MANAGER" → ROLE_RENTAL_MANAGER 비교
+                                            grantedAuth.equals("ROLE_" + role) ||
+                                            // Client role: AUTH_MAP 값 "rental:write" → rental:write 직접 비교
+                                            grantedAuth.equals(role)
+                                    ))
                             .map(AuthorizationDecision::new)
                             .defaultIfEmpty(new AuthorizationDecision(false));
                 });

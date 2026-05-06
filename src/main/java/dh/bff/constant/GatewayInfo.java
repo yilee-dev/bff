@@ -1,33 +1,23 @@
 package dh.bff.constant;
 
-import org.springframework.http.ResponseEntity;
-import reactor.core.publisher.Mono;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
-import java.util.Map;
-
+@Component
 public class GatewayInfo {
-    public static final String GATEWAY = "10.117.9.40";
-    public static final String PORT = "8080";
 
-    public static final String PROTOCOL = "http";
+    private static String gatewayUrl;
+
+    @Value("${keycloak.admin.server-url:http://10.100.104.24:8080}")
+    public void setGatewayUrl(String url) {
+        GatewayInfo.gatewayUrl = url;
+    }
 
     public static String getGatewayUrl() {
-        return PROTOCOL + "://" + GATEWAY + ":" + PORT;
+        return gatewayUrl;
     }
 
-    public static String getGatewayWith(String url) {
-        return PROTOCOL + "://" + GATEWAY + ":" + PORT + "/" + url;
-    }
-
-    public static String endSessionOut(String idToken) {
-        String endPoint = getGatewayWith("realms/donghee/protocol/openid-connect/logout");
-
-        return String.format(
-                endPoint,
-                "?id_token_hint=%s" + "&post_logout_redirect_uri=%s",
-                idToken,
-                getGatewayUrl()
-        );
+    public static String getGatewayWith(String path) {
+        return gatewayUrl + "/" + path;
     }
 }

@@ -1,15 +1,23 @@
 package dh.bff.constant;
 
-public class ClientInfo {
-    public static final String CLIENT = "10.117.9.40";
-    public static final String PORT = "3000";
-    public static final String PROTOCOL = "http";
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
-    public static String getClientInfo() {
-        return PROTOCOL + "://" + CLIENT + ":" + PORT;
+@Component
+public class ClientInfo {
+
+    private static String clientUrl;
+
+    @Value("${app.client.url:http://10.117.9.40:3000}")
+    public void setClientUrl(String url) {
+        ClientInfo.clientUrl = url;
     }
 
-    public static String getURL(String url) {
-        return getClientInfo() + "/" + url;
+    public static String getClientInfo() {
+        return clientUrl;
+    }
+
+    public static String getURL(String path) {
+        return clientUrl + "/" + path;
     }
 }

@@ -1,5 +1,6 @@
 package dh.bff.controller;
 
+import dh.bff.keycloak.KeycloakAdminProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -13,8 +14,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.WebSession;
+import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,13 +28,10 @@ import java.util.Map;
 public class AuthController {
 
     private final WebClient webClient;
+    private final KeycloakAdminProperties keycloakProps;
 
     @GetMapping("/me")
     public Mono<ResponseEntity<Map<String, Object>>> getUserInfo(@AuthenticationPrincipal OAuth2User oidcUser) {
-        Map<String, Object> attributes1 = oidcUser.getAttributes();
-        for (String s : attributes1.keySet()) {
-            System.out.println(s + ": " + attributes1.get(s));
-        }
         return Mono.justOrEmpty(oidcUser)
                 .map(user -> {
                     Map<String, Object> attributes = user.getAttributes();
@@ -50,6 +50,18 @@ public class AuthController {
                             response.put("roles", realmAccess.get("roles"));
                         }
                     }
+
+                    // resource_access.api-gateway.roles에서 permissions 추출
+                    if (attributes.containsKey("resource_access")) {
+                        Object ra = attributes.get("resource_access");
+                        if (ra instanceof Map<?, ?> resourceAccess) {
+                            Object clientAccess = resourceAccess.get("api-gateway");
+                            if (clientAccess instanceof Map<?, ?> ca) {
+                                response.put("permissions", ca.get("roles"));
+                            }
+                        }
+                    }
+
                     return ResponseEntity.ok(response);
                 })
                 .defaultIfEmpty(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
@@ -57,26 +69,30 @@ public class AuthController {
 
     @PostMapping("/sign-out")
     public Mono<ResponseEntity<Void>> signOut(WebSession session, @AuthenticationPrincipal OidcUser oidcUser) {
-
         if (oidcUser == null || oidcUser.getIdToken() == null) {
+            log.warn("sign-out 호출 시 oidcUser 또는 idToken이 null — 세션만 무효화합니다.");
             return session.invalidate()
                     .then(Mono.just(ResponseEntity.ok().<Void>build()));
         }
 
         String idToken = oidcUser.getIdToken().getTokenValue();
 
+        URI logoutUri = UriComponentsBuilder
+                .fromUriString(keycloakProps.serverUrl())
+                .path("/realms/{realm}/protocol/openid-connect/logout")
+                .queryParam("id_token_hint", idToken)
+                .buildAndExpand(keycloakProps.realm())
+                .toUri();
+
+        log.info("Keycloak 로그아웃 요청: {}", logoutUri);
+
         return webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .scheme("http")
-                        .host("10.100.104.24")
-                        .port(8080)
-                        .path("/realms/donghee/protocol/openid-connect/logout")
-                        .queryParam("id_token_hint", idToken)
-                        .build())
+                .uri(logoutUri)
                 .retrieve()
-                .bodyToMono(String.class)
+                .toBodilessEntity()
+                .doOnSuccess(res -> log.info("Keycloak 로그아웃 성공: {}", res.getStatusCode()))
                 .onErrorResume(e -> {
-                    log.error(e.getMessage());
+                    log.error("Keycloak 로그아웃 실패: {}", e.getMessage(), e);
                     return Mono.empty();
                 })
                 .then(session.invalidate())

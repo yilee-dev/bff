@@ -16,7 +16,7 @@ public class OriginPreservingRepository implements ServerAuthorizationRequestRep
     @Override
     public Mono<OAuth2AuthorizationRequest> loadAuthorizationRequest(ServerWebExchange exchange) {
         return exchange.getSession()
-                .map(session -> session.getAttribute(AUTH_REQUEST_ATTR));
+                .flatMap(session -> Mono.justOrEmpty(session.<OAuth2AuthorizationRequest>getAttribute(AUTH_REQUEST_ATTR)));
     }
 
     @Override
@@ -42,10 +42,10 @@ public class OriginPreservingRepository implements ServerAuthorizationRequestRep
 
     @Override
     public Mono<OAuth2AuthorizationRequest> removeAuthorizationRequest(ServerWebExchange exchange) {
-        return exchange.getSession().map(session -> {
+        return exchange.getSession().flatMap(session -> {
             OAuth2AuthorizationRequest request = session.getAttribute(AUTH_REQUEST_ATTR);
             session.getAttributes().remove(AUTH_REQUEST_ATTR);
-            return request;
+            return Mono.justOrEmpty(request);
         });
     }
 }
