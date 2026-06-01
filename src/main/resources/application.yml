@@ -46,6 +46,12 @@ spring:
           default-filters:
             - TokenRelay
           routes:
+            - id: dba-monitor
+              uri: ${DBA_BACKEND_URL:http://10.117.9.40:4000}
+              predicates:
+                - Path=/dba-api/**
+              filters:
+                - StripPrefix=1
             - id: user-service
               uri: ${USER_SERVICE_URL:http://10.117.9.40:8086}
               predicates:
@@ -54,6 +60,12 @@ spring:
               uri: ${RENTAL_BACKEND_URL:http://10.117.9.40:8085}
               predicates:
                 - Path=/api/v1/**
+
+opensearch:
+  url: ${OPENSEARCH_URL:https://10.100.104.19:9200}
+  username: ${OPENSEARCH_USERNAME:admin}
+  password: ${OPENSEARCH_PASSWORD:DHD@ngh222}
+  index: ${OPENSEARCH_INDEX:packetbeat-2026.03}
 
 keycloak:
   admin:
@@ -67,6 +79,52 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://10.117.9.40:3000,http://10.117.9.40:4000,http://172.100.74.3:3000}
   client:
     url: ${CLIENT_URL:http://10.117.9.40:3000}
+  auth:
+    default-rules:
+      # ── rental-pc (구체적 경로를 와일드카드보다 먼저) ──────────────
+      - { method: "GET",    path: "/api/v1/rental-pcs/*/qr-code",        authority: "rental:qr" }
+      - { method: "POST",   path: "/api/v1/rental-pcs/qr-labels",        authority: "rental:qr" }
+      - { method: "GET",    path: "/api/v1/rental-pcs/**",               authority: "rental:read" }
+      - { method: "POST",   path: "/api/v1/rental-pcs/**",              authority: "rental:write" }
+      - { method: "PUT",    path: "/api/v1/rental-pcs/**",              authority: "rental:write" }
+      - { method: "DELETE", path: "/api/v1/rental-pcs",                 authority: "admin:manage" }
+      - { method: "DELETE", path: "/api/v1/rental-pcs/**",              authority: "rental:delete" }
+      # ── audit (verify 경로를 manage 와일드카드보다 먼저) ─────────────
+      - { method: "PUT",    path: "/api/v1/audits/*/items/*/verify",    authority: "audit:verify" }
+      - { method: "DELETE", path: "/api/v1/audits/*/items/*/verify",    authority: "audit:verify" }
+      - { method: "GET",    path: "/api/v1/audits/**",                  authority: "audit:read" }
+      - { method: "POST",   path: "/api/v1/audits/**",                  authority: "audit:manage" }
+      - { method: "PUT",    path: "/api/v1/audits/**",                  authority: "audit:manage" }
+      - { method: "DELETE", path: "/api/v1/audits/**",                  authority: "audit:manage" }
+      # ── dsign ──────────────────────────────────────────────────────
+      - { method: "GET",    path: "/api/v1/dsign/**",                   authority: "rental:read" }
+      - { method: "POST",   path: "/api/v1/dsign/**",                   authority: "rental:write" }
+      # ── disposal-disks ────────────────────────────────────────────
+      - { method: "GET",    path: "/api/v1/disposal-disks/**",          authority: "disposal:read" }
+      - { method: "POST",   path: "/api/v1/disposal-disks/**",          authority: "disposal:write" }
+      - { method: "PUT",    path: "/api/v1/disposal-disks/**",          authority: "disposal:write" }
+      - { method: "DELETE", path: "/api/v1/disposal-disks/**",          authority: "disposal:delete" }
+      # ── software ──────────────────────────────────────────────────
+      - { method: "GET",    path: "/api/v1/software/**",                authority: "software:read" }
+      - { method: "POST",   path: "/api/v1/software/**",                authority: "software:write" }
+      - { method: "DELETE", path: "/api/v1/software/**",                authority: "software:delete" }
+      # ── servers ───────────────────────────────────────────────────
+      - { method: "GET",    path: "/api/v1/servers/**",                 authority: "server:read" }
+      - { method: "POST",   path: "/api/v1/servers/**",                 authority: "server:write" }
+      - { method: "PUT",    path: "/api/v1/servers/**",                 authority: "server:write" }
+      - { method: "DELETE", path: "/api/v1/servers/**",                 authority: "server:delete" }
+      # ── network-equipment ─────────────────────────────────────────
+      - { method: "GET",    path: "/api/v1/network-equipment/**",       authority: "network:read" }
+      - { method: "POST",   path: "/api/v1/network-equipment/**",       authority: "network:write" }
+      - { method: "PUT",    path: "/api/v1/network-equipment/**",       authority: "network:write" }
+      - { method: "DELETE", path: "/api/v1/network-equipment/**",       authority: "network:delete" }
+      # ── network-traffic ───────────────────────────────────────────
+      - { method: "GET",    path: "/api/bff/network-traffic/**",        authority: "server:read" }
+      - { method: "DELETE", path: "/api/bff/network-traffic/**",        authority: "admin:manage" }
+      # ── 관리자 API ────────────────────────────────────────────────
+      - { method: "*",      path: "/api/admin/**",                      authority: "admin:manage" }
+      # ── DBA 모니터링 ──────────────────────────────────────────────
+      - { method: "*",      path: "/dba-api/**",                        authority: "report:dba" }
 
 logging:
   level:

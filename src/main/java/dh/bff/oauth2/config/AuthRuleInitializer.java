@@ -8,37 +8,43 @@ import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.stream.Collectors;
 
+/**
+ * 애플리케이션 시작 시 application.yml의 app.auth.default-rules를 Redis AUTH_MAP에 적재.
+ *
+ * - 기본 규칙(default-rules)은 항상 덮어씌워 application.yml 변경이 재배포 후 즉시 반영됨.
+ * - Admin UI로 추가된 동적 규칙(기본 규칙 키에 없는 경로)은 그대로 유지됨.
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class AuthRuleInitializer implements ApplicationRunner {
 
-    private static final String AUTH_MAP_KEY = "AUTH_MAP";
+    public static final String AUTH_MAP_KEY = "AUTH_MAP";
 
     private final ReactiveRedisTemplate<String, String> redisTemplate;
-
-    private static final Map<String, String> DEFAULT_RULES = Map.of(
-            "GET:/api/v1/rental-pcs/**", "RENTAL_VIEWER",
-            "POST:/api/v1/rental-pcs/**", "RENTAL_MANAGER",
-            "PUT:/api/v1/rental-pcs/**", "RENTAL_MANAGER",
-            "DELETE:/api/v1/rental-pcs/**", "RENTAL_MANAGER"
-    );
+    private final AuthRuleProperties properties;
 
     @Override
     public void run(ApplicationArguments args) {
-        redisTemplate.opsForHash().size(AUTH_MAP_KEY)
-                .flatMap(size -> {
-                    if (size > 0) {
-                        log.info("AUTH_MAP already has {} rules, skipping initialization", size);
-                        return redisTemplate.opsForHash().entries(AUTH_MAP_KEY).then();
-                    }
+        Map<String, String> defaults = properties.getDefaultRules().stream()
+                .collect(Collectors.toMap(
+                        AuthRuleProperties.RuleEntry::toRedisKey,
+                        AuthRuleProperties.RuleEntry::getAuthority,
+                        (a, b) -> a  // 중복 키 발생 시 첫 번째 유지
+                ));
 
-                    log.info("Initializing AUTH_MAP with {} default rules", DEFAULT_RULES.size());
-                    return redisTemplate.opsForHash()
-                            .putAll(AUTH_MAP_KEY, DEFAULT_RULES)
-                            .then();
-                })
+        if (defaults.isEmpty()) {
+            log.warn("No default auth rules configured in app.auth.default-rules");
+            return;
+        }
+
+        log.info("Loading {} default auth rules into Redis AUTH_MAP", defaults.size());
+        redisTemplate.opsForHash()
+                .putAll(AUTH_MAP_KEY, defaults)
+                .doOnSuccess(v -> log.info("Default auth rules applied successfully"))
+                .doOnError(e -> log.error("Failed to load default auth rules", e))
                 .subscribe();
     }
 }

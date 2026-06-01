@@ -99,11 +99,6 @@ public class KeycloakAdminService {
         }
     }
 
-    /**
-     * 사용자 검색.
-     * - 한글 이름 / 부서 필터: 캐시된 전체 유저에서 BFF 필터링 (Keycloak 호출 없음)
-     * - 일반 검색(username·사번): Keycloak 검색 API 직접 호출
-     */
     public Mono<List<UserResponse>> getUsers(String search, String department, int first, int max) {
         boolean hasSearch     = search != null && !search.isBlank();
         boolean isKorean      = isKoreanName(search);

@@ -1,5 +1,6 @@
 package dh.bff.controller;
 
+import dh.bff.oauth2.config.AuthRuleInitializer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +16,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AdminAuthController {
 
-    private static final String AUTH_MAP_KEY = "AUTH_MAP";
+    private static final String AUTH_MAP_KEY = AuthRuleInitializer.AUTH_MAP_KEY;
 
     private final ReactiveRedisTemplate<String, String> redisTemplate;
 

@@ -88,10 +88,8 @@ public class SecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/login/**", "/public/**", "/api/auth/sign-out").permitAll()
                         .pathMatchers("/api/auth/me").permitAll()
-                        .pathMatchers("/bff/users", "/bff/users/**").authenticated()
-                        .pathMatchers("/bff/departments", "/bff/departments/**").authenticated()
-                        .pathMatchers("/api/admin/**").hasRole("RENTAL_MANAGER")
-                        .pathMatchers("/api/**").access(dynamicAuthorizationManager)
+                        .pathMatchers("/bff/**").authenticated()
+                        .pathMatchers("/api/**", "/dba-api/**").access(dynamicAuthorizationManager)
                         .anyExchange().authenticated())
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationRequestRepository(new OriginPreservingRepository())
